@@ -66,8 +66,14 @@ Scope {
     }
 
     function tryFingerUnlock() {
-        if (root.fingerprintsConfigured) {
+        if (root.fingerprintsConfigured && !fingerPam.active) {
             fingerPam.start();
+        }
+    }
+
+    onFingerprintsConfiguredChanged: {
+        if (root.fingerprintsConfigured && GlobalStates.screenLocked) {
+            tryFingerUnlock();
         }
     }
 
