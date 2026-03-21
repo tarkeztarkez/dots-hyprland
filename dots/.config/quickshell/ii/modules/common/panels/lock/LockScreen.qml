@@ -114,6 +114,9 @@ Scope {
             root.lock();
         }
         function focus(): void {
+            if (GlobalStates.screenLocked) {
+                lockContext.tryFingerUnlock();
+            }
             lockContext.shouldReFocus();
         }
     }
@@ -133,6 +136,9 @@ Scope {
             + "decides to keyboard-unfocus the lock screen"
 
         onPressed: {
+            if (GlobalStates.screenLocked) {
+                lockContext.tryFingerUnlock();
+            }
             lockContext.shouldReFocus();
         }
     }
