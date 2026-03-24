@@ -25,7 +25,7 @@ Scope {
         }
         LazyLoader {
             id: barLoader
-            active: GlobalStates.barOpen && !GlobalStates.screenLocked
+            active: (GlobalStates.barOpen || GlobalStates.barPeekOpen) && !GlobalStates.screenLocked
             required property ShellScreen modelData
             component: PanelWindow { // Bar window
                 id: barRoot
@@ -255,6 +255,24 @@ Scope {
 
         onPressed: {
             GlobalStates.barOpen = false;
+        }
+    }
+
+    GlobalShortcut {
+        name: "barPeekStart"
+        description: "Temporarily shows bar while held"
+
+        onPressed: {
+            GlobalStates.barPeekOpen = true;
+        }
+    }
+
+    GlobalShortcut {
+        name: "barPeekEnd"
+        description: "Stops temporarily showing bar"
+
+        onPressed: {
+            GlobalStates.barPeekOpen = false;
         }
     }
 }
