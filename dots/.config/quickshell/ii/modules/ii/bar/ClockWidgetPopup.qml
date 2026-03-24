@@ -12,11 +12,9 @@ StyledPopup {
     property string todosSection: getUpcomingTodos()
 
     function getUpcomingTodos() {
-        const unfinishedTodos = Todo.list.filter(function (item) {
-            return !item.done;
-        });
+        const unfinishedTodos = Todo.unfinishedList;
         if (unfinishedTodos.length === 0) {
-            return Translation.tr("No pending tasks");
+            return Todo.loading ? "Loading Todoist tasks..." : (Todo.error.length > 0 ? Todo.error : Translation.tr("No pending tasks"));
         }
 
         // Limit to first 5 todos to keep popup manageable

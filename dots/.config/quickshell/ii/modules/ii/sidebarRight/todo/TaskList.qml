@@ -16,6 +16,13 @@ Item {
     property int todoListItemPadding: 8
     property int listBottomPadding: 80
 
+    function dueText(task) {
+        if (!task?.due?.string) {
+            return "";
+        }
+        return task.due.string;
+    }
+
     StyledListView {
         id: listView
         anchors.fill: parent
@@ -27,84 +34,111 @@ Item {
         delegate: Item {
             id: todoItem
             required property var modelData
-            property bool pendingDoneToggle: false
-            property bool pendingDelete: false
-            property bool enableHeightAnimation: false
-
-            implicitHeight: todoItemRectangle.implicitHeight
+            implicitHeight: todoRow.implicitHeight + separatorRect.implicitHeight + 6
             width: ListView.view.width
             clip: true
 
-            Behavior on implicitHeight {
-                enabled: enableHeightAnimation
-                NumberAnimation {
-                    duration: Appearance.animation.elementMoveFast.duration
-                    easing.type: Appearance.animation.elementMoveFast.type
-                    easing.bezierCurve: Appearance.animation.elementMoveFast.bezierCurve
+            RowLayout {
+                id: todoRow
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.leftMargin: 6
+                anchors.rightMargin: 6
+                anchors.topMargin: 4
+                spacing: 10
+
+                RippleButton {
+                    Layout.alignment: Qt.AlignTop
+                    implicitWidth: 24
+                    implicitHeight: 24
+                    buttonRadius: Appearance.rounding.full
+                    colBackground: "transparent"
+                    colBackgroundHover: ColorUtils.transparentize(Appearance.colors.colPrimary, 0.9)
+                    onClicked: {
+                        if (!todoItem.modelData.done)
+                            Todo.markDone(todoItem.modelData.id);
+                        else
+                            Todo.markUnfinished(todoItem.modelData.id);
+                    }
+
+                    contentItem: Item {
+                        anchors.fill: parent
+
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 20
+                            height: 20
+                            radius: width / 2
+                            color: todoItem.modelData.done ? Appearance.colors.colPrimary : "transparent"
+                            border.width: 2
+                            border.color: todoItem.modelData.done ? Appearance.colors.colPrimary : Appearance.m3colors.m3outline
+                        }
+
+                        MaterialSymbol {
+                            anchors.centerIn: parent
+                            text: "check"
+                            iconSize: 14
+                            color: todoItem.modelData.done ? Appearance.m3colors.m3onPrimary : "transparent"
+                        }
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 3
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: todoItem.modelData.content
+                        wrapMode: Text.Wrap
+                        color: Appearance.colors.colOnLayer1
+                        font.pixelSize: Appearance.font.pixelSize.normal
+                        font.strikeout: todoItem.modelData.done
+                    }
+
+                    StyledText {
+                        visible: text.length > 0
+                        Layout.fillWidth: true
+                        text: todoItem.modelData.description ?? ""
+                        wrapMode: Text.Wrap
+                        maximumLineCount: 2
+                        elide: Text.ElideRight
+                        color: Appearance.colors.colSubtext
+                        font.pixelSize: Appearance.font.pixelSize.small
+                    }
+
+                    RowLayout {
+                        visible: dueLabel.visible
+                        spacing: 5
+
+                        MaterialSymbol {
+                            id: recurringIcon
+                            visible: todoItem.modelData.due?.isRecurring ?? false
+                            text: "repeat"
+                            iconSize: Appearance.font.pixelSize.smaller
+                            color: Appearance.colors.colSubtext
+                        }
+
+                        StyledText {
+                            id: dueLabel
+                            visible: text.length > 0
+                            text: root.dueText(todoItem.modelData)
+                            color: Appearance.colors.colSubtext
+                            font.pixelSize: Appearance.font.pixelSize.small
+                        }
+                    }
                 }
             }
 
             Rectangle {
-                id: todoItemRectangle
+                id: separatorRect
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                implicitHeight: todoContentRowLayout.implicitHeight
-                color: Appearance.colors.colLayer2
-                radius: Appearance.rounding.small
-
-                ColumnLayout {
-                    id: todoContentRowLayout
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-
-                    StyledText {
-                        id: todoContentText
-                        Layout.fillWidth: true // Needed for wrapping
-                        Layout.leftMargin: 10
-                        Layout.rightMargin: 10
-                        Layout.topMargin: todoListItemPadding
-                        text: todoItem.modelData.content
-                        wrapMode: Text.Wrap
-                    }
-                    RowLayout {
-                        Layout.leftMargin: 10
-                        Layout.rightMargin: 10
-                        Layout.bottomMargin: todoListItemPadding
-                        Item {
-                            Layout.fillWidth: true
-                        }
-                        TodoItemActionButton {
-                            Layout.fillWidth: false
-                            onClicked: {
-                                if (!todoItem.modelData.done)
-                                    Todo.markDone(todoItem.modelData.originalIndex);
-                                else
-                                    Todo.markUnfinished(todoItem.modelData.originalIndex);
-                            }
-                            contentItem: MaterialSymbol {
-                                anchors.centerIn: parent
-                                horizontalAlignment: Text.AlignHCenter
-                                text: todoItem.modelData.done ? "remove_done" : "check"
-                                iconSize: Appearance.font.pixelSize.larger
-                                color: Appearance.colors.colOnLayer1
-                            }
-                        }
-                        TodoItemActionButton {
-                            Layout.fillWidth: false
-                            onClicked: {
-                                Todo.deleteItem(todoItem.modelData.originalIndex);
-                            }
-                            contentItem: MaterialSymbol {
-                                anchors.centerIn: parent
-                                horizontalAlignment: Text.AlignHCenter
-                                text: "delete_forever"
-                                iconSize: Appearance.font.pixelSize.larger
-                                color: Appearance.colors.colOnLayer1
-                            }
-                        }
-                    }
-                }
+                anchors.leftMargin: 34
+                height: 1
+                color: ColorUtils.transparentize(Appearance.m3colors.m3outlineVariant, 0.45)
             }
         }
     }

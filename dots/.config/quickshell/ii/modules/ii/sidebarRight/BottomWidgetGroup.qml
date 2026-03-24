@@ -111,7 +111,7 @@ Rectangle {
         }
 
         StyledText {
-            property int remainingTasks: Todo.list.filter(task => !task.done).length
+            property int remainingTasks: Todo.unfinishedList.length
             Layout.margins: 10
             Layout.leftMargin: 0
             // text: `${DateTime.collapsedCalendarFormat}   •   ${remainingTasks} task${remainingTasks > 1 ? "s" : ""}`

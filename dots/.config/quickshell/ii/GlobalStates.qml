@@ -35,6 +35,7 @@ Singleton {
         if (GlobalStates.sidebarRightOpen) {
             Notifications.timeoutAll();
             Notifications.markAllRead();
+            Todo.refresh();
         }
     }
 

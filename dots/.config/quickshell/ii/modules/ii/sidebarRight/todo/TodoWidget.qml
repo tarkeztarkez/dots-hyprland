@@ -64,18 +64,14 @@ Item {
             TaskList {
                 listBottomPadding: root.fabSize + root.fabMargins * 2
                 emptyPlaceholderIcon: "check_circle"
-                emptyPlaceholderText: Translation.tr("Nothing here!")
-                taskList: Todo.list
-                    .map(function(item, i) { return Object.assign({}, item, {originalIndex: i}); })
-                    .filter(function(item) { return !item.done; })
+                emptyPlaceholderText: Todo.loading ? "Loading Todoist tasks..." : (Todo.error.length > 0 ? Todo.error : Translation.tr("Nothing here!"))
+                taskList: Todo.unfinishedList
             }
             TaskList {
                 listBottomPadding: root.fabSize + root.fabMargins * 2
                 emptyPlaceholderIcon: "checklist"
-                emptyPlaceholderText: Translation.tr("Finished tasks will go here")
-                taskList: Todo.list
-                    .map(function(item, i) { return Object.assign({}, item, {originalIndex: i}); })
-                    .filter(function(item) { return item.done; })
+                emptyPlaceholderText: Todo.loading ? "Loading completed Todoist tasks..." : (Todo.error.length > 0 ? Todo.error : Translation.tr("Finished tasks will go here"))
+                taskList: Todo.completedList
             }
 
         }
