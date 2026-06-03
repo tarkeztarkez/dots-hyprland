@@ -16,6 +16,7 @@ SOURCE_LOCALE="en_US"
 NOTIFICATION_APP_NAME="Shell"
 TARGET_LOCALE="$1"
 MODEL="${2:-${GEMINI_MODEL:-gemini-2.5-flash}}"
+GEMINI_API_BASE="${GEMINI_API_BASE:-http://127.0.0.1:8765/v1beta}"
 
 # Update the source keys for translation
 "${TRANSLATIONS_DIR}/tools/manage-translations.sh" update -l "$SOURCE_LOCALE" --yes
@@ -45,15 +46,11 @@ payload=$(jq -n \
 )
 # echo "$payload" | jq
 
-# Get API key
-API_KEY=$(secret-tool lookup 'application' 'illogical-impulse' | jq -r '.apiKeys.gemini')
-
 # Notify start
 notify-send "Translation started" "Will take 2 minutes, and you'll be notified when it's done, so feel free to do something else in the meantime." -a "$NOTIFICATION_APP_NAME"
 
 # Make the request
-response=$(curl "https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent" \
--H "x-goog-api-key: $API_KEY" \
+response=$(curl "${GEMINI_API_BASE}/models/${MODEL}:generateContent" \
 -H 'Content-Type: application/json' \
 -X POST \
 -d "$payload" 2> /dev/null)

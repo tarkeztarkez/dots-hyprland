@@ -24,6 +24,9 @@ ApiStrategy {
             "tools": tools,
             "temperature": temperature,
         };
+        if (filePath && filePath.length > 0 && model.endpoint.includes("127.0.0.1")) {
+            baseData["files"] = [filePath];
+        }
         return model.extraParams ? Object.assign({}, baseData, model.extraParams) : baseData;
     }
 

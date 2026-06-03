@@ -9,6 +9,7 @@ fi
 # Variables
 SOURCE_IMG_PATH="$1"
 MODEL="${2:-${GEMINI_WALLPAPER_MODEL:-gemini-2.5-flash}}" # We use the flash variant so it's fast
+GEMINI_API_BASE="${GEMINI_API_BASE:-http://127.0.0.1:8765/v1beta}"
 WALLPAPER_NAME="$(basename "$SOURCE_IMG_PATH")"
 PROMPT="${3:-${GEMINI_WALLPAPER_PROMPT:-Categorize the wallpaper. Its file name is $WALLPAPER_NAME}}"
 RESIZED_IMG_PATH="/tmp/quickshell/ai/wallpaper.jpg"
@@ -16,9 +17,6 @@ RESIZED_IMG_PATH="/tmp/quickshell/ai/wallpaper.jpg"
 # Resize image for speed
 mkdir -p "$(dirname "$RESIZED_IMG_PATH")"
 magick "$SOURCE_IMG_PATH" -resize 200x -quality 50 "$RESIZED_IMG_PATH"
-
-# Get API key
-API_KEY=$(secret-tool lookup 'application' 'illogical-impulse' | jq -r '.apiKeys.gemini')
 
 # Encode image to base64
 if [[ "$(base64 --version 2>&1)" = *"FreeBSD"* ]]; then
@@ -54,8 +52,7 @@ payload='{
 # echo "$payload" | jq
 
 # Make the request
-response=$(curl "https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent" \
--H "x-goog-api-key: $API_KEY" \
+response=$(curl "${GEMINI_API_BASE}/models/${MODEL}:generateContent" \
 -H 'Content-Type: application/json' \
 -X POST \
 -d "$payload" 2> /dev/null)
