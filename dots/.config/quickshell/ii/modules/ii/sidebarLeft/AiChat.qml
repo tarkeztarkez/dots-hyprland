@@ -20,6 +20,16 @@ Item {
     property var suggestionQuery: ""
     property var suggestionList: []
 
+    function localImagePathFromText(text) {
+        let candidate = (text ?? "").trim();
+        if (candidate.length === 0 || candidate.includes("\n")) return "";
+        if (candidate.startsWith("file://")) candidate = decodeURIComponent(candidate);
+        candidate = FileUtils.trimFileProtocol(candidate);
+        if (!candidate.startsWith("/")) return "";
+        if (!/\.(png|jpe?g|webp|gif|bmp|tiff?|heic|avif)$/i.test(candidate)) return "";
+        return candidate;
+    }
+
     onFocusChanged: focus => {
         if (focus) {
             root.inputField.forceActiveFocus();
@@ -198,6 +208,15 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
     ]
 
     function handleInput(inputText) {
+        inputText = (inputText ?? "").trim();
+        const pastedImagePath = root.localImagePathFromText(inputText);
+        if (pastedImagePath.length > 0) {
+            Ai.attachFile(pastedImagePath);
+            inputText = "";
+        }
+        if (inputText.length === 0 && Ai.pendingFilePath.length > 0) {
+            inputText = Translation.tr("Describe this image.");
+        }
         if (inputText.startsWith(root.commandPrefix)) {
             // Handle special commands
             const command = inputText.split(" ")[0].substring(1);
@@ -680,6 +699,13 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
                                     Ai.attachFile(fileName);
                                     event.accepted = true;
                                     return;
+                                } else {
+                                    const clipboardImagePath = root.localImagePathFromText(Quickshell.clipboardText);
+                                    if (clipboardImagePath.length > 0) {
+                                        Ai.attachFile(clipboardImagePath);
+                                        event.accepted = true;
+                                        return;
+                                    }
                                 }
                                 event.accepted = false; // No image, let text pasting proceed
                             } else if (event.key === Qt.Key_Escape) {
@@ -701,7 +727,7 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
                     implicitWidth: 40
                     implicitHeight: 40
                     buttonRadius: Appearance.rounding.small
-                    enabled: messageInputField.text.length > 0
+                    enabled: messageInputField.text.length > 0 || Ai.pendingFilePath.length > 0
                     toggled: enabled
 
                     MouseArea {
