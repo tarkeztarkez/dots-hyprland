@@ -24,7 +24,6 @@ Scope {
 
         anchors {
             top: true
-            right: true
             bottom: true
         }
 
@@ -39,8 +38,7 @@ Scope {
             id: listview
             anchors {
                 bottom: parent.bottom
-                right: parent.right
-                left: parent.left
+                horizontalCenter: parent.horizontalCenter
             }
             leftMargin: 16
             rightMargin: 16

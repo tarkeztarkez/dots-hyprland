@@ -22,7 +22,6 @@ Scope {
 
         anchors {
             top: true
-            right: true
             bottom: true
         }
 
@@ -38,8 +37,7 @@ Scope {
             anchors {
                 top: parent.top
                 bottom: parent.bottom
-                right: parent.right
-                rightMargin: 4
+                horizontalCenter: parent.horizontalCenter
                 topMargin: 4
             }
             implicitWidth: parent.width - Appearance.sizes.elevationMargin * 2
