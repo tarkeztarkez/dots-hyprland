@@ -324,6 +324,12 @@ Item { // Bar content region
                 invertSide: Config?.options.bar.bottom
             }
 
+            // sub-auth status widget (managed by sub-auth)
+            SubAuthWidget {
+                Layout.fillWidth: false
+                Layout.fillHeight: true
+            }
+
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
