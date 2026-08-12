@@ -55,3 +55,9 @@ fi
 
 printf 'Running installer...\n'
 "${setup_cmd[@]}" install
+
+sub_auth_root="$HOME/Projects/sub-auth"
+if [[ -f "$sub_auth_root/scripts/install-quickshell.ts" ]]; then
+  printf 'Reinstalling sub-auth Quickshell widget...\n'
+  (cd "$sub_auth_root" && bun run install:quickshell)
+fi
