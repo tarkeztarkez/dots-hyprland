@@ -1,1 +1,2 @@
-
+-- Migrated from custom/env.conf
+-- Add extra env vars here with hl.env("KEY", "VALUE")

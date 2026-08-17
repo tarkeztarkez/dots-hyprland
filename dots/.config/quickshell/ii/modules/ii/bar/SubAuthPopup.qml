@@ -3,14 +3,53 @@ import QtQuick.Layouts
 import qs.modules.common
 import qs.modules.common.widgets
 
-StyledPopup {
+SubAuthStyledPopup {
     id: root
 
-    property var serverState: ({ mode: "auto", activeEmail: null, accounts: [] })
+    popupRightMargin: 75
+    property var serverState: ({ mode: "auto", activeEmail: null, accounts: [], total: ({}), dailyBudget: ({}) })
     property string errorMessage: ""
-    readonly property int tableWidth: 520
+    readonly property int tableWidth: 570
+    readonly property int accountColumnWidth: 175
+    readonly property int fiveHourColumnWidth: 90
+    readonly property int weeklyColumnWidth: 110
 
     function percentage(value) {
+        return value === null || value === undefined ? "—" : `${Math.round(value)}%`;
+    }
+
+    function resetIn(value) {
+        if (!value)
+            return "—";
+        let seconds = Math.max(0, Math.ceil((Date.parse(value) - Date.now()) / 1000));
+        if (!isFinite(seconds) || seconds === 0)
+            return "now";
+        const days = Math.floor(seconds / 86400);
+        seconds %= 86400;
+        const hours = Math.floor(seconds / 3600);
+        seconds %= 3600;
+        const minutes = Math.max(1, Math.ceil(seconds / 60));
+        if (days)
+            return `${days}d ${hours}h`;
+        if (hours)
+            return `${hours}h ${minutes}m`;
+        return `${minutes}m`;
+    }
+
+    function limit(value, resetAt) {
+        if (value === null || value === undefined)
+            return "—";
+        return `${root.percentage(value)} · ${root.resetIn(resetAt)}`;
+    }
+
+    function totalLimit(limit) {
+        if (!limit || limit.remaining === null || limit.remaining === undefined)
+            return "—";
+        const count = limit.totalAccountCount > 0 ? ` (${limit.accountCount}/${limit.totalAccountCount})` : "";
+        return `${root.percentage(limit.remaining)} LEFT${count}`;
+    }
+
+    function dailyCountdown(value) {
         return value === null || value === undefined ? "—" : `${Math.round(value)}%`;
     }
 
@@ -37,6 +76,41 @@ StyledPopup {
             anchors.centerIn: parent
             width: root.tableWidth
             spacing: 8
+
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 52
+                radius: Appearance.rounding.small
+                color: Appearance.colors.colSecondaryContainer
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 10
+                    anchors.topMargin: 4
+                    anchors.bottomMargin: 4
+                    spacing: 0
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        MaterialSymbol { Layout.preferredWidth: 16; text: "functions"; iconSize: Appearance.font.pixelSize.normal; color: Appearance.m3colors.m3primary }
+                        StyledText { Layout.preferredWidth: root.accountColumnWidth; text: "TOTAL"; font.weight: Font.Bold; color: Appearance.m3colors.m3onSecondaryContainer }
+                        StyledText { Layout.preferredWidth: root.fiveHourColumnWidth; text: root.totalLimit(root.serverState.total?.fiveHour); horizontalAlignment: Text.AlignRight; font.weight: Font.DemiBold; color: Appearance.m3colors.m3onSecondaryContainer }
+                        StyledText { Layout.preferredWidth: root.weeklyColumnWidth; text: root.totalLimit(root.serverState.total?.weekly); horizontalAlignment: Text.AlignRight; font.weight: Font.DemiBold; color: Appearance.m3colors.m3onSecondaryContainer }
+                        StyledText { Layout.fillWidth: true; text: "" }
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: `TODAY LEFT  ·  ALL DAYS ${root.dailyCountdown(root.serverState.dailyBudget?.allDaysRemaining)}  ·  WEEKDAYS ${root.dailyCountdown(root.serverState.dailyBudget?.weekdaysRemaining)}`
+                        horizontalAlignment: Text.AlignRight
+                        font.weight: Font.DemiBold
+                        color: Appearance.m3colors.m3primary
+                    }
+                }
+            }
 
             RowLayout {
                 Layout.fillWidth: true
@@ -94,9 +168,9 @@ StyledPopup {
                     spacing: 8
 
                     StyledText { text: ""; Layout.preferredWidth: 16 }
-                    StyledText { text: "ACCOUNT"; Layout.preferredWidth: 220; font.weight: Font.DemiBold; color: Appearance.colors.colOnSurfaceVariant }
-                    StyledText { text: "5 HOUR"; Layout.preferredWidth: 58; horizontalAlignment: Text.AlignRight; font.weight: Font.DemiBold; color: Appearance.colors.colOnSurfaceVariant }
-                    StyledText { text: "WEEKLY"; Layout.preferredWidth: 58; horizontalAlignment: Text.AlignRight; font.weight: Font.DemiBold; color: Appearance.colors.colOnSurfaceVariant }
+                    StyledText { text: "ACCOUNT"; Layout.preferredWidth: root.accountColumnWidth; font.weight: Font.DemiBold; color: Appearance.colors.colOnSurfaceVariant }
+                    StyledText { text: "5H · RESET"; Layout.preferredWidth: root.fiveHourColumnWidth; horizontalAlignment: Text.AlignRight; font.weight: Font.DemiBold; color: Appearance.colors.colOnSurfaceVariant }
+                    StyledText { text: "WEEK · RESET"; Layout.preferredWidth: root.weeklyColumnWidth; horizontalAlignment: Text.AlignRight; font.weight: Font.DemiBold; color: Appearance.colors.colOnSurfaceVariant }
                     StyledText { text: "STATUS"; Layout.fillWidth: true; horizontalAlignment: Text.AlignRight; font.weight: Font.DemiBold; color: Appearance.colors.colOnSurfaceVariant }
                 }
             }
@@ -126,14 +200,14 @@ StyledPopup {
                             color: accountRow.modelData.active ? Appearance.m3colors.m3primary : Appearance.colors.colOutlineVariant
                         }
                         StyledText {
-                            Layout.preferredWidth: 220
+                            Layout.preferredWidth: root.accountColumnWidth
                             text: accountRow.modelData.email
                             elide: Text.ElideRight
                             font.weight: accountRow.modelData.active ? Font.DemiBold : Font.Normal
                             color: accountRow.modelData.active ? Appearance.m3colors.m3onSecondaryContainer : Appearance.colors.colOnSurface
                         }
-                        StyledText { Layout.preferredWidth: 58; text: root.percentage(accountRow.modelData.fiveHourRemaining); horizontalAlignment: Text.AlignRight; color: root.statusColor(accountRow.modelData) }
-                        StyledText { Layout.preferredWidth: 58; text: root.percentage(accountRow.modelData.weeklyRemaining); horizontalAlignment: Text.AlignRight; color: root.statusColor(accountRow.modelData) }
+                        StyledText { Layout.preferredWidth: root.fiveHourColumnWidth; text: root.limit(accountRow.modelData.fiveHourRemaining, accountRow.modelData.fiveHourResetAt); horizontalAlignment: Text.AlignRight; color: root.statusColor(accountRow.modelData) }
+                        StyledText { Layout.preferredWidth: root.weeklyColumnWidth; text: root.limit(accountRow.modelData.weeklyRemaining, accountRow.modelData.weeklyResetAt); horizontalAlignment: Text.AlignRight; color: root.statusColor(accountRow.modelData) }
                         StyledText { Layout.fillWidth: true; text: root.prettyStatus(accountRow.modelData.status); horizontalAlignment: Text.AlignRight; color: root.statusColor(accountRow.modelData) }
                     }
                 }
