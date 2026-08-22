@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Super+E owns workspace 6. It has no pinned anchor tab or agent-browser state.
-exec ~/.agents/skills/my-browser/scripts/toggle-my-browser-window "$@"
+# A unique initial title lets my-browser bind once without confusing this tab
+# with a New tab in another Helium window. my-browser remembers the tab after it
+# navigates away from this page.
+bootstrap="http://my-browser.localhost/"
+exec ~/.agents/skills/my-browser/scripts/toggle-my-browser-window "$@" "$bootstrap"
