@@ -31,6 +31,12 @@ background. Commands do not activate the browser tab or steal desktop focus.
 Refs belong to the selected tab's automation session. Snapshot again after
 navigation or DOM changes. Never reuse another session's refs.
 
+If native clicks or keyboard input do not work in a background tab, run
+my-browser --session RETURNED_ID activate. This visually selects only the owned
+tab inside Super+E. It does not focus another desktop window. Snapshot again
+before interacting. Use focus followed by press Enter when an extension popup
+interferes with a button's click coordinates.
+
 ## More tabs and cleanup
 
     my-browser --session RETURNED_ID new-tab https://example.com

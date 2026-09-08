@@ -113,6 +113,10 @@ export async function manage(input: any, cdp: CDP, instance: string) {
   const tab = state.tabs.find((tab: any) => tab.targetId === state.selected);
   if (!tab) throw new Error('No selected owned tab');
   await check(tab);
+  if (input.action === 'activate') {
+    await evaluate(`chrome.tabs.update(${tab.nativeId}, {active:true})`);
+    return result;
+  }
   if (input.action === 'tabs') return Promise.all(state.tabs.map(check));
   if (input.action !== 'check') throw new Error('Unknown management action');
   return result;

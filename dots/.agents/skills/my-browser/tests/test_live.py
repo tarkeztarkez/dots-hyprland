@@ -43,6 +43,7 @@ class LiveTests(unittest.TestCase):
                 self.assertNotEqual(groups[0]["id"], groups[1]["id"])
                 self.assertEqual(groups[0]["windowId"], groups[1]["windowId"])
                 for index, session in enumerate(sessions):
+                    self.call(session, "activate")
                     self.call(session, "eval", f'document.title="Groups live {index}"; document.body.innerHTML="<button>Increment {index}</button>"; window.count=0; document.querySelector("button").onclick=()=>++window.count; true')
                     self.assertIn("@e1", self.call(session, "snapshot", "-i").stdout.replace("ref=e1", "@e1"))
                 for _ in range(3):

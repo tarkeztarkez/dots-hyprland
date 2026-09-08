@@ -25,6 +25,7 @@ my-browser --session ID tabs              List only this session's tabs
 my-browser --session ID select TARGET_ID  Select an owned tab
 my-browser --session ID close-tab [ID]    Close an owned tab, without fallback
 my-browser --session ID status            Show group and selected target
+my-browser --session ID activate          Visually select the owned Super+E tab
 my-browser --session ID finish            Close owned tabs only
 Use the returned session ID for every command. No shared default session.
 """
@@ -171,6 +172,8 @@ def main(args=None):
         if command[0] == "close-tab" and len(command) in (1, 2):
             state = manage("close-tab", state, targetId=command[1] if len(command) == 2 else state["selected"]); save(state); return 0
         state = manage("check", state)
+        if command == ["activate"]:
+            manage("activate", state); return 0
         if command == ["status"]:
             print(json.dumps({key: state[key] for key in ["session", "windowId", "groupId", "selected"]})); return 0
         if command[0] == "new-tab" and len(command) in (1, 2):
