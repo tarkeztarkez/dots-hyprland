@@ -142,3 +142,12 @@ test("invalid project IDs and active project searches fail closed", () => {
     expect(p.projects("read").error).toBeTruthy();
     expect(p.selected()).toBe("");
 });
+
+test("hidden retained picker is reopened instead of cached as a complete list", () => {
+    const p = projectPicker();
+    p.projects("open");
+    p.grid.getClientRects = () => [];
+    expect(p.projects("read").loading).toBe(true);
+    p.grid.getClientRects = () => [{ height: 300 }];
+    expect(p.projects("read").projects).toHaveLength(1);
+});

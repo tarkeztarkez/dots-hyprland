@@ -12,6 +12,8 @@
         const picker = document.querySelector(pickerSelector);
         if (!picker) return { error: "Toggl's project picker is unavailable" };
         let grid = picker.querySelector('[class*="ProjectsContainer"] [role="grid"]');
+        if (grid && grid.getClientRects && (!grid.getClientRects().length || grid.clientHeight === 0))
+            grid = null;
         if (message.step === "open") {
             if (!grid) {
                 picker.querySelector('[tabindex="0"]').click();

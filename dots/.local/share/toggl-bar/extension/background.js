@@ -18,6 +18,8 @@ async function scanProjects(selectId) {
     await picker("open");
     const found = new Map();
     let bottomWaits = 0;
+    let stableBottom = 0;
+    let lastBottom = "";
     try {
         await pause(150);
         await picker("scroll", { position: 0 });
@@ -31,6 +33,10 @@ async function scanProjects(selectId) {
                 return view.projects.find(project => project.id === selectId);
             }
             if (view.top + view.height >= view.total - 1) {
+                const signature = JSON.stringify([view.total, [...found.keys()]]);
+                stableBottom = signature === lastBottom ? stableBottom + 1 : 0;
+                lastBottom = signature;
+                if (stableBottom < 5) continue;
                 if (view.loading && bottomWaits++ < 10) continue;
                 if (selectId) throw new Error("Project is no longer available");
                 projectCache = [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
