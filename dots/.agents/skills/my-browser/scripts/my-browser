@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""Task-owned groups in the tagged Super+E Helium window."""
+import fcntl
+import hashlib
+import json
+import os
+import re
+import subprocess
+import sys
+import urllib.request
+import uuid
+from contextlib import contextmanager
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+STATE_DIR = Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")) / "my-browser" / "sessions"
+AGENT_BROWSER = Path.home() / ".bun/bin/agent-browser"
+LAUNCHER = Path.home() / ".config/hypr/custom/scripts/toggle_my_browser_workspace.sh"
+BLOCKED = {"connect", "close", "tab", "session", "sessions", "profiles", "mcp", "chat", "record", "stream", "state"}
+FLAGS = {"--cdp", "--session", "--namespace", "--auto-connect", "--profile", "--engine", "--config", "--args", "--executable-path", "--state", "--restore", "--restore-save", "--session-name", "--extension", "--init-script", "--provider", "--device", "--headed", "--webgpu"}
+HELP = """my-browser start TASK [URL]                 Create a fresh session and native tab group
+my-browser --session ID <browser command>  Operate only its selected owned tab
+my-browser --session ID new-tab [URL]      Add and select a tab in this group
+my-browser --session ID tabs              List only this session's tabs
+my-browser --session ID select TARGET_ID  Select an owned tab
+my-browser --session ID close-tab [ID]    Close an owned tab, without fallback
+my-browser --session ID status            Show group and selected target
+my-browser --session ID finish            Close owned tabs only
+Use the returned session ID for every command. No shared default session.
+"""
+
+def run(args, **kwargs):
+    return subprocess.run(args, check=True, text=True, **kwargs)
+
+def validate_session(session):
+    if not re.fullmatch(r"[a-z][a-z0-9-]{0,63}", session):
+        raise ValueError("Session must be a lowercase identifier, at most 64 characters")
+    return session
+
+def validate_command(args):
+    if not args or args[0] in BLOCKED or args[0].startswith("-"):
+        raise ValueError("Use wrapper start/new-tab/tabs/select/finish, not browser/session controls")
+    if any(arg.split("=")[0] in FLAGS for arg in args):
+        raise ValueError("Connection, profile and session overrides are not allowed")
+
+@contextmanager
+def session_lock(session):
+    STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with (STATE_DIR / f"{session}.lock").open("a") as lock:
+        os.chmod(lock.name, 0o600)
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise RuntimeError("Session is busy. Do not run concurrent commands with the same ID")
+        yield
+
+def state_path(session):
+    return STATE_DIR / f"{validate_session(session)}.json"
+
+def save(state):
+    path = state_path(state["session"])
+    pending = path.with_suffix(".pending")
+    fd = os.open(pending, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as out:
+        json.dump(state, out)
+    os.replace(pending, path)
+
+def tagged_window(launch=False):
+    if launch:
+        run([str(LAUNCHER), "6", "helium-browser", "--ozone-platform=x11", "--new-window", "--remote-debugging-port=9222"], env=os.environ | {"HELIUM_NO_FOCUS": "1"}, capture_output=True)
+    clients = json.loads(run(["hyprctl", "clients", "-j"], capture_output=True).stdout)
+    windows = [c for c in clients if c.get("class", "").lower() == "helium" and c.get("workspace", {}).get("id") == 6 and "helium-test" in c.get("tags", [])]
+    if len(windows) != 1:
+        raise RuntimeError("Expected exactly one tagged Super+E window. No fallback to Super+W")
+    return {"address": windows[0]["address"], "title": windows[0]["title"]}
+
+def manage(action, state=None, **extra):
+    result = subprocess.run(["bun", str(ROOT / "manage.ts")], input=json.dumps({"action": action, "state": state, "window": tagged_window(action == "start"), **extra}), text=True, capture_output=True)
+    if result.returncode:
+        raise RuntimeError(result.stderr.strip())
+    return json.loads(result.stdout)
+
+def proxy_for(state):
+    target = state["selected"]
+    if target in state["proxies"]:
+        return state["proxies"][target]["endpoint"]
+    save(state)
+    log = STATE_DIR / f'{state["session"]}-proxy.log'
+    fd = os.open(log, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    with os.fdopen(fd, "a") as error_log:
+        process = subprocess.Popen(["bun", str(ROOT / "proxy.ts"), str(state_path(state["session"])), target], stdout=subprocess.PIPE, stderr=error_log, text=True, start_new_session=True)
+        line = process.stdout.readline()
+        process.stdout.close()
+    if not line:
+        raise RuntimeError("Scoped browser connection failed. Inspect the session proxy log")
+    endpoint = json.loads(line)["endpoint"]
+    state["proxies"][target] = {"endpoint": endpoint, "pid": process.pid}
+    save(state)
+    return endpoint
+
+def daemon_env(state, target=None):
+    env = {key: value for key, value in os.environ.items() if not key.startswith("AGENT_BROWSER_")}
+    identity = hashlib.sha256((state["session"] + (target or state["selected"])).encode()).hexdigest()[:20]
+    env.update(AGENT_BROWSER_SESSION=f"mb-{identity}", AGENT_BROWSER_NAMESPACE="mb", AGENT_BROWSER_IDLE_TIMEOUT_MS="300000")
+    return env
+
+def browser(state, args):
+    validate_command(args)
+    endpoint = proxy_for(state)
+    env = daemon_env(state)
+    connection = subprocess.run([str(AGENT_BROWSER), "connect", endpoint], env=env, text=True, capture_output=True)
+    if connection.returncode:
+        detail = connection.stderr.strip().replace(endpoint, "[scoped CDP]")[-800:]
+        raise RuntimeError(f"Scoped browser connection is unavailable. Do not retry an uncertain write. {detail}")
+    completed = subprocess.run([str(AGENT_BROWSER), "--cdp", endpoint, *args], env=env)
+    try:
+        manage("check", state)
+    except RuntimeError as error:
+        raise RuntimeError(f"Ownership changed during command; its effects may have completed. {error}")
+    return completed.returncode
+
+def finish(state):
+    finished = state if state.get("closed") else manage("finish", state)
+    save(finished)
+    for target, proxy in state["proxies"].items():
+        # This is our per-tab daemon, connected through the scoped proxy.
+        # agent-browser disconnects external CDP browsers on close; it does not
+        # close Helium. The proxy additionally refuses Browser.close.
+        try:
+            subprocess.run([str(AGENT_BROWSER), "close"], env=daemon_env(state, target), capture_output=True, timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+        try:
+            url = proxy["endpoint"].replace("ws://", "http://", 1)
+            with urllib.request.urlopen(urllib.request.Request(url, method="DELETE"), timeout=2):
+                pass
+        except OSError:
+            pass
+    return 0
+
+def main(args=None):
+    args = list(sys.argv[1:] if args is None else args)
+    if not args or args == ["--help"]:
+        print(HELP); return 0
+    if args == ["guide"]:
+        return subprocess.run([str(AGENT_BROWSER), "skills", "get", "core", "--full"]).returncode
+    if args[0] == "start":
+        if len(args) not in (2, 3):
+            raise ValueError("Use my-browser start TASK [URL]")
+        name = validate_session(args[1])
+        session = name[:48] + "-" + uuid.uuid4().hex[:10]
+        with session_lock(session):
+            state = manage("start", session=session)
+            save(state)
+            print(json.dumps({"session": session, "groupId": state["groupId"], "targetId": state["selected"]}), flush=True)
+            return browser(state, ["open", args[2]]) if len(args) == 3 else 0
+    if len(args) < 3 or args[0] != "--session":
+        raise ValueError("A task session is required. First run: my-browser start TASK")
+    session = validate_session(args[1]); command = args[2:]
+    with session_lock(session):
+        try:
+            state = json.loads(state_path(session).read_text())
+        except FileNotFoundError:
+            raise RuntimeError("Unknown session. Start a new session; no existing tab will be adopted")
+        if command == ["finish"]:
+            return finish(state)
+        if command == ["tabs"]:
+            print(json.dumps(manage("tabs", state))); return 0
+        if command[0] == "select" and len(command) == 2:
+            state = manage("select", state, targetId=command[1]); save(state); return 0
+        if command[0] == "close-tab" and len(command) in (1, 2):
+            state = manage("close-tab", state, targetId=command[1] if len(command) == 2 else state["selected"]); save(state); return 0
+        state = manage("check", state)
+        if command == ["status"]:
+            print(json.dumps({key: state[key] for key in ["session", "windowId", "groupId", "selected"]})); return 0
+        if command[0] == "new-tab" and len(command) in (1, 2):
+            state = manage("new-tab", state); save(state)
+            print(json.dumps({"targetId": state["selected"]}), flush=True)
+            return browser(state, ["open", command[1]]) if len(command) == 2 else 0
+        return browser(state, command)
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except (ValueError, RuntimeError, OSError, subprocess.CalledProcessError) as error:
+        print(f"my-browser: {error}", file=sys.stderr)
+        raise SystemExit(1)

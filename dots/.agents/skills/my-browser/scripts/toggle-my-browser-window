@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Super+E owns workspace 6. The caller supplies a local bootstrap URL for native
+# window discovery. Task groups are created by my-browser, not this launcher.
+# Unlike the general Helium launcher,
+# it has no focus-history fallback: an address-diff race fails instead of ever
+# moving the Super+W window.
+
+target_workspace="${1:-}"
+shift || true
+if [[ "$target_workspace" != "6" || "$#" -eq 0 ]]; then
+  echo "Usage: $0 6 <helium command...>" >&2
+  exit 1
+fi
+
+clients() {
+  hyprctl clients -j
+}
+
+target_addresses() {
+  clients | jq -r \
+    '.[] | select((.class | ascii_downcase) == "helium" and .workspace.id == 6 and (.tags | index("helium-test"))) | .address' \
+    | sort
+}
+
+super_w_addresses() {
+  clients | jq -r \
+    '.[] | select((.class | ascii_downcase) == "helium" and .workspace.id == 8 and ((.tags | index("helium-test")) | not)) | .address' \
+    | sort
+}
+
+all_helium_addresses() {
+  clients | jq -r '.[] | select((.class | ascii_downcase) == "helium") | .address' | sort
+}
+
+focus_target() {
+  [[ "${HELIUM_NO_FOCUS:-0}" == "1" ]] && return 0
+  hyprctl dispatch 'hl.dsp.focus({ workspace = 6 })' >/dev/null
+}
+
+# Helium owns one browser process/profile. Establish the user's Super+W window
+# first so a Super+E request can only add the dedicated automation window.
+if [[ -z "$(super_w_addresses)" ]]; then
+  HELIUM_NO_FOCUS=1 ~/.config/hypr/custom/scripts/toggle_helium_workspace.sh 8 "$@"
+  if [[ -z "$(super_w_addresses)" ]]; then
+    echo "Refusing: could not launch the Super+W Helium window first" >&2
+    exit 1
+  fi
+fi
+
+existing="$(target_addresses)"
+if [[ -n "$existing" ]]; then
+  if [[ "$(printf '%s\n' "$existing" | sed '/^$/d' | wc -l)" -ne 1 ]]; then
+    echo "Refusing: workspace 6 does not have exactly one tagged Helium window" >&2
+    exit 1
+  fi
+  focus_target
+  exit 0
+fi
+
+before="$(all_helium_addresses)"
+"$@" >/dev/null 2>&1 &
+
+for _ in {1..80}; do
+  after="$(all_helium_addresses)"
+  mapfile -t created < <(comm -13 <(printf '%s\n' "$before") <(printf '%s\n' "$after") | sed '/^$/d')
+  if [[ "${#created[@]}" -eq 1 ]]; then
+    address="${created[0]}"
+    hyprctl dispatch "hl.dsp.window.move({ workspace = 6, window = \"address:${address}\", follow = false })" >/dev/null
+    hyprctl dispatch "hl.dsp.window.tag({ tag = \"+helium-test\", window = \"address:${address}\" })" >/dev/null
+    focus_target
+    exit 0
+  fi
+  if [[ "${#created[@]}" -gt 1 ]]; then
+    echo "Refusing: launch created multiple Helium windows" >&2
+    exit 1
+  fi
+  sleep 0.1
+done
+
+echo "Refusing: could not prove which newly created Helium window belongs to Super+E" >&2
+exit 1
