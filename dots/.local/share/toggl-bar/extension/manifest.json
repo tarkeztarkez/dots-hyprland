@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Toggl bar",
+  "version": "1.0.0",
+  "description": "Connect Toggl's timer page to Quickshell without a Toggl API token.",
+  "permissions": [
+    "tabs",
+    "scripting",
+    "nativeMessaging",
+    "alarms",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://track.toggl.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Open Toggl timer"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://track.toggl.com/*"
+      ],
+      "js": [
+        "page.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
