@@ -34,6 +34,8 @@ uv run --no-project python dots/.local/share/toggl-bar/install.py
 
 In Helium, open `chrome://extensions`, enable Developer mode, choose Load unpacked, and select `~/.local/share/toggl-bar/extension`. Keep that directory in place. The installer registers the native host under `~/.config/net.imput.helium/NativeMessagingHosts`. Its allowed extension ID derives from the installed directory path.
 
+In `chrome://settings/performance`, add `track.toggl.com` under "Always keep these sites active". This is required for background operation. Pinning and `autoDiscardable: false` alone do not prevent every form of background freezing. The exception applies only to Toggl, not other websites. It has been configured on this machine.
+
 The Quickshell files are:
 
 - `dots/.config/quickshell/ii/modules/ii/bar/BarContent.qml`
@@ -89,3 +91,9 @@ python3 ~/.local/share/toggl-bar/bridge.py status
 If unavailable, check that Toggl bar is enabled, its native host manifest points to the installed bridge, and the timer tab is signed in. Only timer mode and the page's h:mm:ss duration format are supported. Changed page markup fails closed instead of guessing which control to click.
 
 No command is replayed after a disconnect. A confirmation means the page changed its timer state, not that Toggl's server saved it. Check the page if its own sync is failing.
+
+Status reads time out after four seconds. A frozen renderer cannot hold the polling loop indefinitely, and late replies cannot overwrite newer status.
+
+The managed content script holds a uniquely named Web Lock while the widget polls it. Chromium exempts pages holding Web Locks from background freezing. The script releases the lock after 90 seconds without a sample. Other Toggl tabs do not acquire it. This does not focus or reload the tab, change time entries, or prevent the browser from closing.
+
+The performance exception alone did not solve the issue on this Helium build. After adding the lock, a 390-second background check returned 40 available samples out of 40, with the newest sample always less than two seconds old. No visit to the Toggl tab was needed during that check.

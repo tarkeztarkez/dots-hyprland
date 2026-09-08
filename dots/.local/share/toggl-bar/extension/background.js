@@ -8,6 +8,22 @@ let projectCache = [];
 
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+// A frozen renderer can leave sendMessage unresolved rather than rejecting it.
+// Bound read-only samples so one lost reply cannot stop all future polling.
+async function readState() {
+    let timeout;
+    try {
+        return await Promise.race([
+            chrome.tabs.sendMessage(tabId, { type: "sample" }),
+            new Promise((_, reject) => {
+                timeout = setTimeout(() => reject(new Error("Timer tab is not responding")), 4000);
+            })
+        ]);
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
 async function picker(step, extra = {}) {
     const result = await chrome.tabs.sendMessage(tabId, { type: "projects", step, ...extra });
     if (result.error) throw new Error(result.error);
@@ -86,7 +102,7 @@ async function sample() {
     try {
         if (!port) connect();
         if (!tabId) await ensureTab();
-        const state = await chrome.tabs.sendMessage(tabId, { type: "sample" });
+        const state = await readState();
         post({ type: "state", ...state });
     } catch (error) {
         post({ type: "state", available: false, reason: "Toggl tab: " + error.message });

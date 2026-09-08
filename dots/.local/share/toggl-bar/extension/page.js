@@ -7,6 +7,24 @@
     const buttonSelector = '[data-dom-element-id="timer-button"]';
     const pickerSelector = '[aria-label="Add a project"]';
     const pickerState = globalThis.__togglBarPickerState ||= { opened: false };
+    // Chromium exempts pages holding Web Locks from background freezing.
+    // Only the managed tab receives samples and acquires this unique lock.
+    const connection = globalThis.__togglBarConnection ||= { release: null, pending: false, timer: null };
+    function keepConnected() {
+        if (!navigator.locks) return;
+        if (connection.timer) clearTimeout(connection.timer);
+        connection.timer = setTimeout(() => {
+            connection.release?.();
+            connection.release = null;
+        }, 90000);
+        if (connection.release || connection.pending) return;
+        connection.pending = true;
+        navigator.locks.request("quickshell-toggl-bar-connection", { ifAvailable: true }, lock => {
+            connection.pending = false;
+            if (!lock) return;
+            return new Promise(resolve => { connection.release = resolve; });
+        }).catch(() => { connection.pending = false; });
+    }
 
     function projects(message) {
         const picker = document.querySelector(pickerSelector);
@@ -75,7 +93,10 @@
     }
     const listener = (message, sender, respond) => {
         if (sender.id !== chrome.runtime.id) return;
-        if (message.type === "sample") respond(read());
+        if (message.type === "sample") {
+            keepConnected();
+            respond(read());
+        }
         if (message.type === "projects") {
             try { respond(projects(message)); }
             catch (error) { respond({ error: error.message }); }

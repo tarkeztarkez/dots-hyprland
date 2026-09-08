@@ -151,3 +151,26 @@ test("hidden retained picker is reopened instead of cached as a complete list", 
     p.grid.getClientRects = () => [{ height: 300 }];
     expect(p.projects("read").projects).toHaveLength(1);
 });
+
+test("managed samples keep one Web Lock and release it when polling stops", async () => {
+    const p = page();
+    let requests = 0, expiry, released = false;
+    p.context.setTimeout = fn => { expiry = fn; return 1; };
+    p.context.clearTimeout = () => {};
+    p.context.navigator.locks = {
+        request: async (name, options, callback) => {
+            requests++;
+            expect(name).toBe("quickshell-toggl-bar-connection");
+            expect(options.ifAvailable).toBe(true);
+            await callback({});
+            released = true;
+        }
+    };
+    p.send({ type: "sample" });
+    p.send({ type: "sample" });
+    expect(requests).toBe(1);
+    expect(released).toBe(false);
+    expiry();
+    await Promise.resolve();
+    expect(released).toBe(true);
+});

@@ -49,7 +49,13 @@ async function worker(initialTabs = [], windowList = [{ id: 1, type: "normal" }]
         action: { onClicked: event() }
     };
     const context = { chrome, URL, console, setInterval: fn => intervals.push(fn),
-        setTimeout: (fn, ms) => ms <= 200 ? queueMicrotask(fn) : timers.push(fn) };
+        setTimeout: (fn, ms) => {
+            if (ms <= 200) { queueMicrotask(fn); return null; }
+            timers.push(fn);
+            return fn;
+        },
+        clearTimeout: fn => { const index = timers.indexOf(fn); if (index >= 0) timers.splice(index, 1); }
+    };
     runInNewContext(source, context);
     await settle();
     return { tabs, posted, commands, chrome, port, windowList, intervals, pickerSteps,
@@ -166,4 +172,26 @@ test("keeps one pinned Toggl tab and leaves every other tab open", async () => {
     expect(extra.pinned).toBe(false);
     expect(w.tabs.filter(t => t.url.startsWith("https://track.toggl.com/") && t.pinned)).toHaveLength(1);
     expect(w.tabs).toHaveLength(4);
+});
+
+test("frozen renderer times out and a late reply cannot overwrite fresh state", async () => {
+    const w = await worker();
+    const send = w.chrome.tabs.sendMessage;
+    let reply;
+    w.chrome.tabs.sendMessage = () => new Promise(resolve => { reply = resolve; });
+    const blocked = w.intervals[0]();
+    await settle();
+    await w.flush();
+    await blocked;
+    expect(w.posted.at(-1).available).toBe(false);
+    expect(w.posted.at(-1).reason).toContain("not responding");
+    w.chrome.tabs.sendMessage = send;
+    await w.intervals[0]();
+    await settle();
+    expect(w.posted.at(-1).available).toBe(true);
+    const count = w.posted.length;
+    reply({ available: false });
+    await settle();
+    expect(w.posted).toHaveLength(count);
+    expect(w.tabs[0].active).toBe(false);
 });
