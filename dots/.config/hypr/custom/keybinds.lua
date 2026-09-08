@@ -6,6 +6,10 @@ hl.bind("switch:on:Lid Switch", hl.dsp.exec_cmd("~/.config/hypr/custom/scripts/l
 hl.bind("SHIFT + Delete", hl.dsp.global("quickshell:barPeekStart"))
 hl.bind("SHIFT + Delete", hl.dsp.global("quickshell:barPeekEnd"), { release = true })
 
+hl.bind("ALT + Space", hl.dsp.global("com.t3tools.T3Code:capture-window"), {
+	description = "T3 Code: Capture window",
+})
+
 local scripts_dir = "~/.config/hypr/custom/scripts"
 
 local apps = {
