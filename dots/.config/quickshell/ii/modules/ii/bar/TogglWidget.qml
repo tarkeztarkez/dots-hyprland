@@ -11,7 +11,7 @@ MouseArea {
     property var tracker: TogglTrack
     property bool menuOpen: false
     Layout.fillHeight: true
-    implicitWidth: 200
+    implicitWidth: Math.min(200, contentLayout.implicitWidth)
     implicitHeight: Appearance.sizes.barHeight
     acceptedButtons: Qt.LeftButton | Qt.RightButton
     hoverEnabled: true
@@ -68,6 +68,7 @@ MouseArea {
     }
 
     RowLayout {
+        id: contentLayout
         anchors.fill: parent
         spacing: 6
         MaterialSymbol {
