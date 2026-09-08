@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "My Browser",
+  "version": "1.0.0",
+  "description": "Task-owned browser groups in the automatically identified Super+E window.",
+  "permissions": ["tabs", "tabGroups", "nativeMessaging"],
+  "background": {"service_worker": "background.js"}
+}

@@ -14,6 +14,13 @@ if [[ "$target_workspace" != "6" || "$#" -eq 0 ]]; then
   exit 1
 fi
 
+# Serialize creation across Super+E and concurrent agent starts.
+lock_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/my-browser"
+mkdir -p "$lock_dir"
+chmod 700 "$lock_dir"
+exec 9>"$lock_dir/launch.lock"
+flock -x 9
+
 clients() {
   hyprctl clients -j
 }
@@ -42,7 +49,12 @@ focus_target() {
 # Helium owns one browser process/profile. Establish the user's Super+W window
 # first so a Super+E request can only add the dedicated automation window.
 if [[ -z "$(super_w_addresses)" ]]; then
-  HELIUM_NO_FOCUS=1 ~/.config/hypr/custom/scripts/toggle_helium_workspace.sh 8 "$@"
+  # Never give Super+W the automation bootstrap URL.
+  browser_args=("$@")
+  if [[ "${browser_args[-1]}" == http://my-browser-*.localhost/ || "${browser_args[-1]}" == http://my-browser.localhost/ ]]; then
+    unset 'browser_args[-1]'
+  fi
+  HELIUM_NO_FOCUS=1 ~/.config/hypr/custom/scripts/toggle_helium_workspace.sh 8 "${browser_args[@]}" 9>&-
   if [[ -z "$(super_w_addresses)" ]]; then
     echo "Refusing: could not launch the Super+W Helium window first" >&2
     exit 1
@@ -60,7 +72,7 @@ if [[ -n "$existing" ]]; then
 fi
 
 before="$(all_helium_addresses)"
-"$@" >/dev/null 2>&1 &
+"$@" 9>&- >/dev/null 2>&1 &
 
 for _ in {1..80}; do
   after="$(all_helium_addresses)"

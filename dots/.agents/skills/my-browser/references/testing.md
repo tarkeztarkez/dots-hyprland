@@ -4,7 +4,11 @@ Canonical source is in ~/Projects/dots-hyperland/dots/.agents/skills/my-browser.
 The installed ~/.agents/skills/my-browser points to this directory. The existing
 ~/.local/bin/my-browser symlink resolves scripts/my-browser through that path.
 Keep the Hyprland launcher in dots/.config/hypr/custom/scripts in sync with its
-installed copy. No browser restart or new extension installation is required.
+installed copy. Run scripts/install.py to register the native host and add the
+owned extension path to helium-browser-flags.conf without removing existing flags.
+Helium loads it on browser startup. It is already loaded on this machine.
+Do not use developerPrivate.loadDirectory for installation. It crashed this
+Helium version during setup. The packaged launcher's --load-extension works.
 
 ## Local test alternative
 
@@ -55,3 +59,13 @@ and closing it did not redirect the next command to the other group.
 
 This verifies browser steering and grouping. It is not evidence that the Sales
 Dashboard vault, physical passkeys or cross-origin PRF passed browser acceptance.
+
+The same live regression passed with the owned My Browser extension and native
+host. Pairing tests cover changed titles, ambiguity, browser restart and message
+size limits. The launcher closes its lock descriptor in both browser launch paths,
+so Helium cannot retain the startup lock. New bootstrap URLs contain random UUIDs.
+
+Installation incident: Helium exited with SIGSEGV while loading a DirectoryEntry
+through developerPrivate.loadDirectory. The normal launchers recreated Super+W
+and tagged Super+E. Previous tabs were not confirmed restored. No browser profile
+or session files were edited. This incident is not a successful restore test.

@@ -1,4 +1,10 @@
 import { CDP } from './cdp';
+import { createHash } from 'node:crypto';
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+export const extensionIdForPath = (path: string) => createHash('sha256').update(path).digest('hex').slice(0, 32).replace(/[0-9a-f]/g, value => String.fromCharCode(97 + parseInt(value, 16)));
+export const OWN_EXTENSION_ID = extensionIdForPath(realpathSync(fileURLToPath(new URL('../extension', import.meta.url))));
 
 export const normalizeTitle = (title: string) => title.replace(/ - Helium$/, '').replace(/^\d+\. /, '');
 export function assertOwned(tab: any, state: any) {
@@ -6,13 +12,20 @@ export function assertOwned(tab: any, state: any) {
 }
 
 export async function bridge(cdp: CDP, extensionId?: string, wakeTarget?: string) {
+  // Never execute management code in an unrelated installed extension.
+  extensionId = OWN_EXTENSION_ID;
   let targets = (await cdp.call('Target.getTargets')).targetInfos;
+  wakeTarget ??= targets.find((t: any) => t.type === 'page')?.targetId;
   if (extensionId && !targets.some((t: any) => t.url.startsWith(`chrome-extension://${extensionId}/`)) && wakeTarget) {
     const { sessionId } = await cdp.call('Target.attachToTarget', { targetId: wakeTarget, flatten: true });
     try {
       await cdp.call('ServiceWorker.enable', {}, sessionId);
       await cdp.call('ServiceWorker.startWorker', { scopeURL: `chrome-extension://${extensionId}/` }, sessionId);
-      targets = (await cdp.call('Target.getTargets')).targetInfos;
+      for (let attempt = 0; attempt < 40; attempt++) {
+        targets = (await cdp.call('Target.getTargets')).targetInfos;
+        if (targets.some((t: any) => t.url.startsWith(`chrome-extension://${extensionId}/`) && t.type === 'service_worker')) break;
+        await Bun.sleep(50);
+      }
     } finally { await cdp.call('Target.detachFromTarget', { sessionId }); }
   }
   for (const target of targets.filter((t: any) => t.url.startsWith('chrome-extension://') && ['background_page', 'service_worker'].includes(t.type))) {
@@ -23,7 +36,7 @@ export async function bridge(cdp: CDP, extensionId?: string, wakeTarget?: string
       if (ready) return { targetId: target.targetId, extensionId: id };
     } catch { /* A worker may stop while discovering contexts. */ }
   }
-  throw new Error('No active extension with the tabs/group API. Enable Chrome Show Tab Numbers, then retry. No ungrouped fallback.');
+  throw new Error('My Browser extension is unavailable. No other extension or window will be used.');
 }
 
 export async function locateWindow(cdp: CDP, title: string) {
@@ -39,7 +52,9 @@ export async function manage(input: any, cdp: CDP, instance: string) {
   if (state && (state.instance !== instance || state.address !== input.window.address || state.closed)) throw new Error('Browser/window changed or session finished. Start a new session.');
   const extension = await bridge(cdp, state?.extensionId, state?.selected);
   const evaluate = (expression: string) => cdp.evaluate(extension.targetId, expression);
-  const windowId = state?.windowId ?? await locateWindow(cdp, input.window.title);
+  const pairing = await evaluate('myBrowser.resolve()');
+  if (pairing.address !== input.window.address || pairing.instance !== instance || (state && state.windowId !== pairing.windowId)) throw new Error('Super+E pairing changed. No action taken');
+  const windowId = pairing.windowId;
   const result = state ? structuredClone(state) : { session: input.session, instance, address: input.window.address, windowId, extensionId: extension.extensionId, tabs: [], proxies: {} };
   const check = async (owned: any) => {
     const native = await evaluate(`chrome.tabs.get(${JSON.stringify(owned.nativeId)})`);

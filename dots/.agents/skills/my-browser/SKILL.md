@@ -70,11 +70,17 @@ Unrelated pages and their console events are not forwarded. Browser-wide closing
 new-target creation and focus activation through this connection are blocked.
 Ownership is checked before and after each command.
 
-Native tab grouping uses an already installed extension context with tabs and
-tabGroups APIs. On this machine that is Chrome Show Tab Numbers. The wrapper
-calls only browser tab/group APIs there. It does not modify the extension or
-read its account data. If the API is unavailable, grouping fails with an error,
-not an ungrouped fallback.
+Native tab grouping uses the owned My Browser extension, never another installed
+extension. Its native host pairs the tagged Hyprland window with the browser's
+window ID. New windows have a unique local bootstrap URL for automatic pairing.
+The pairing persists through title changes and expires on browser/window restart.
+The launcher opens Super+E when missing and never passes its bootstrap to Super+W.
+No user selection or confirmation is required for normal operation. Ambiguous
+initial pairing fails without opening a tab in an unconfirmed window.
+
+The extension has tabs, tabGroups and nativeMessaging permissions. It has no
+content scripts or website host permissions. The native host reads window
+metadata and accepts no shell commands. Group operations use only this extension.
 
 Groups are not separate browser profiles. Cookies, logins and storage are shared.
 This prevents accidental cross-task steering, not hostile JavaScript or a user
