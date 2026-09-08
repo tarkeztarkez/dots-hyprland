@@ -1,0 +1,11 @@
+[Unit]
+Description=Quickshell panel (%i)
+PartOf=graphical-session.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+ExecStart=/usr/bin/qs --no-duplicate -c %i
+Restart=always
+RestartSec=3
+TimeoutStopSec=10
