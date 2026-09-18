@@ -77,9 +77,21 @@ local apps = {
 		title = "YouTrack",
 		workspace = 14,
 	},
-	{ keys = { "SUPER + SHIFT + E" }, process = "thunderbird", class = "org.mozilla.Thunderbird", workspace = 18 },
+	{
+		keys = { "SUPER + SHIFT + E" },
+		process = "thunderbird",
+		class = "org.mozilla.Thunderbird",
+		script = "toggle_communications_workspace.sh",
+		workspace = 20,
+	},
 	{ keys = { "SUPER + SHIFT + S" }, name = "Beeper", process = "beeper", class = "BeeperTexts", workspace = 19 },
-	{ keys = { "SUPER + S" }, process = "slack", class = "Slack", workspace = 20 },
+	{
+		keys = { "SUPER + S" },
+		process = "slack",
+		class = "Slack",
+		script = "toggle_communications_workspace.sh",
+		workspace = 20,
+	},
 	{
 		keys = { "SUPER + SHIFT + W" },
 		name = "ChatGPT",
@@ -121,6 +133,17 @@ local function app_command(app)
 			app.workspace,
 			shell_quote(app.match),
 			app.args
+		)
+	end
+
+	if script == "toggle_communications_workspace.sh" then
+		return string.format(
+			"%s/%s %s %s %s",
+			scripts_dir,
+			script,
+			quote(app.process),
+			quote(app.class),
+			app.workspace
 		)
 	end
 
