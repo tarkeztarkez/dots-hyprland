@@ -91,6 +91,15 @@ local apps = {
 		workspace = 20,
 	},
 	{
+		keys = { "SUPER + SHIFT + M" },
+		name = "SoundCloud",
+		script = "toggle_webapp_workspace.sh",
+		match = "soundcloud\\.com|SoundCloud",
+		args = "helium-browser --app=https://soundcloud.com/ --simulate-outdated-no-au",
+		title = "SoundCloud",
+		workspace = 21,
+	},
+	{
 		keys = { "SUPER + SHIFT + W" },
 		name = "ChatGPT",
 		script = "toggle_webapp_workspace.sh",
@@ -258,6 +267,8 @@ for _, title in ipairs({
 	"gitea\\.verestro\\.com_/",
 	"YouTrack",
 	"youtrack\\.verestro\\.com_/",
+	"SoundCloud",
+	"soundcloud\\.com_/",
 }) do
 	hl.window_rule({ match = { class = "^(Helium)$", title = ".*" .. title .. ".*" }, tile = true })
 end
