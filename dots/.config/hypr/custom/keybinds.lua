@@ -81,15 +81,13 @@ local apps = {
 		keys = { "SUPER + SHIFT + E" },
 		process = "thunderbird",
 		class = "org.mozilla.Thunderbird",
-		script = "toggle_communications_workspace.sh",
-		workspace = 20,
+		workspace = 18,
 	},
 	{ keys = { "SUPER + SHIFT + S" }, name = "Beeper", process = "beeper", class = "BeeperTexts", workspace = 19 },
 	{
 		keys = { "SUPER + S" },
 		process = "slack",
 		class = "Slack",
-		script = "toggle_communications_workspace.sh",
 		workspace = 20,
 	},
 	{
@@ -133,17 +131,6 @@ local function app_command(app)
 			app.workspace,
 			shell_quote(app.match),
 			app.args
-		)
-	end
-
-	if script == "toggle_communications_workspace.sh" then
-		return string.format(
-			"%s/%s %s %s %s",
-			scripts_dir,
-			script,
-			quote(app.process),
-			quote(app.class),
-			app.workspace
 		)
 	end
 
