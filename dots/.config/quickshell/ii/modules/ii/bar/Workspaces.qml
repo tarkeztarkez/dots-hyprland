@@ -30,7 +30,7 @@ ButtonMouseArea {
     property real workspaceIconSizeShrinked: workspaceButtonWidth * 0.55
     property real workspaceIconOpacityShrinked: 1
     property real workspaceIconMarginShrinked: -4
-    property int workspaceIndexInGroup: (monitor?.activeWorkspace?.id - 1) % wsModel.shownCount
+    property int workspaceIndexInGroup: wsModel.activeIndex
     property real specialTextSize: workspaceButtonWidth * 0.5
 
     Layout.alignment: vertical ? Qt.AlignHCenter : Qt.AlignVCenter
@@ -54,7 +54,9 @@ ButtonMouseArea {
     }
 
     function switchWorkspaceToHovered() {
-        Hyprland.dispatch(`hl.dsp.focus({workspace = ${wsModel.getWorkspaceIdAt(hoverIndex)}})`);
+        const wsId = wsModel.getWorkspaceIdAt(hoverIndex);
+        if (wsId > 0)
+            Hyprland.dispatch(`hl.dsp.focus({workspace = ${wsId}})`);
     }
 
     function toggleSpecial() {
@@ -114,8 +116,8 @@ ButtonMouseArea {
                     required property int index
                     readonly property int wsId: wsModel.getWorkspaceIdAt(index)
                     property bool currentOccupied: wsModel.occupied[index] && wsId != wsModel.fakeWorkspace
-                    property bool previousOccupied: index > 0 && wsModel.occupied[index - 1] && (wsId - 1) != wsModel.fakeWorkspace
-                    property bool nextOccupied: index < wsModel.shownCount - 1 && wsModel.occupied[index + 1] && (wsId + 1) != wsModel.fakeWorkspace
+                    property bool previousOccupied: index > 0 && wsModel.occupied[index - 1] && wsModel.getWorkspaceIdAt(index - 1) != wsModel.fakeWorkspace
+                    property bool nextOccupied: index < wsModel.shownCount - 1 && wsModel.occupied[index + 1] && wsModel.getWorkspaceIdAt(index + 1) != wsModel.fakeWorkspace
                     implicitWidth: root.workspaceButtonWidth
                     implicitHeight: root.workspaceButtonWidth
 

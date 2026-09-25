@@ -261,6 +261,7 @@ Singleton {
                 property JsonObject workspaces: JsonObject {
                     property bool monochromeIcons: true
                     property int shown: 10
+                    property int alwaysShown: 3 // Workspaces 1..N are always shown; the rest only when occupied
                     property bool showAppIcons: true
                     property bool alwaysShowNumbers: false
                     property int showNumberDelay: 300 // milliseconds

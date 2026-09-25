@@ -13,8 +13,11 @@ NestableObject {
     readonly property int activeWorkspace: monitor?.activeWorkspace?.id ?? 1
     readonly property bool currentWorkspaceNotFake: activeWindow?.activated ?? false // Active empty workspace = fake. At least, that's how I like to call it.
     readonly property int fakeWorkspace: currentWorkspaceNotFake ? -9999 : activeWorkspace
-    readonly property int shownCount: C.Config.options.bar.workspaces.shown
-    readonly property int group: Math.floor((activeWorkspace - 1) / shownCount)
+    readonly property int alwaysShown: C.Config.options.bar.workspaces.alwaysShown
+    // Workspaces 1..alwaysShown, then only occupied ones (plus the active one so the indicator has a slot)
+    property list<int> shownIds: []
+    readonly property int shownCount: shownIds.length
+    property int activeIndex: 0
     readonly property var specialWorkspace: liveMonitorData?.specialWorkspace
     readonly property string specialWorkspaceName: specialWorkspace?.name.replace("special:", "") ?? "special"
     readonly property bool specialWorkspaceActive: specialWorkspaceName !== ""
@@ -26,21 +29,22 @@ NestableObject {
         return biggestWindow;
     })
 
-    function getWorkspaceId(group, index) {
-        return group * root.shownCount + index + 1;
-    }
     function getWorkspaceIdAt(index) {
-        return root.getWorkspaceId(root.group, index);
+        return root.shownIds[index] ?? -1;
     }
 
-    // Function to update workspaceOccupied
+    // Function to update shownIds and workspaceOccupied
     function updateWorkspaceOccupied() {
-        root.occupied = Array.from({
-            length: root.shownCount
-        }, (_, i) => {
-            const thisWorkspaceId = getWorkspaceId(root.group, i);
-            return Hyprland.workspaces.values.some(ws => ws.id === thisWorkspaceId);
-        });
+        const existing = Hyprland.workspaces.values.map(ws => ws.id).filter(id => id > 0);
+        const ids = new Set(existing);
+        for (let i = 1; i <= root.alwaysShown; i++)
+            ids.add(i);
+        if (root.activeWorkspace > 0)
+            ids.add(root.activeWorkspace);
+        const sorted = Array.from(ids).sort((a, b) => a - b);
+        root.shownIds = sorted;
+        root.activeIndex = Math.max(0, sorted.indexOf(root.activeWorkspace));
+        root.occupied = root.shownIds.map(id => existing.includes(id));
     }
 
     // Occupied workspace updates
@@ -57,7 +61,6 @@ NestableObject {
             root.updateWorkspaceOccupied();
         }
     }
-    onGroupChanged: {
-        updateWorkspaceOccupied();
-    }
+    onActiveWorkspaceChanged: updateWorkspaceOccupied()
+    onAlwaysShownChanged: updateWorkspaceOccupied()
 }
