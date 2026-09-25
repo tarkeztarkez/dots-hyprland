@@ -79,8 +79,11 @@ local apps = {
 	},
 	{
 		keys = { "SUPER + SHIFT + E" },
-		process = "thunderbird",
-		class = "org.mozilla.Thunderbird",
+		name = "Zero Mail",
+		script = "toggle_webapp_workspace.sh",
+		match = "mail\\.marcinszyda\\.com",
+		args = "helium-browser --app=https://mail.marcinszyda.com --simulate-outdated-no-au",
+		title = "Zero Mail",
 		workspace = 18,
 	},
 	{ keys = { "SUPER + SHIFT + S" }, name = "Beeper", process = "beeper", class = "BeeperTexts", workspace = 19 },
