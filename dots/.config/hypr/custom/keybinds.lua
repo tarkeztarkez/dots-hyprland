@@ -14,6 +14,13 @@ local scripts_dir = "~/.config/hypr/custom/scripts"
 
 local apps = {
 	{
+		keys = { "SUPER + Escape" },
+		name = "Verestrus Desktop",
+		process = "/home/tarkeztarkez/Applications/Verestrus-Desktop.AppImage",
+		class = "com.verestro.Verestrus",
+		workspace = 7,
+	},
+	{
 		keys = { "CTRL + SUPER + S" },
 		name = "Hermes (piggon)",
 		process = "/home/tarkeztarkez/.config/hypr/custom/scripts/hermes-piggon.sh",
@@ -37,7 +44,7 @@ local apps = {
 	{ keys = { "SUPER + SHIFT + R" }, name = "Code", process = "zed", class = "dev.zed.Zed", workspace = 10 },
 	{ keys = { "SUPER + R" }, name = "Dolphin", process = "dolphin", class = "org.kde.dolphin", workspace = 9 },
 		{
-			keys = { "SUPER + Return", "SUPER + Escape" },
+			keys = { "SUPER + Return" },
 			name = "Herdr",
 			process = "ghostty",
 		class = "com.mitchellh.ghostty",
